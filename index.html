@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GlobalXender Native</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #1e293b;
+            --accent: #10b981;
+            --accent-hover: #059669;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --nav-bg: #131c31;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding-bottom: 70px; min-height: 100vh; }
+        
+        header { text-align: center; padding: 16px; border-bottom: 1px solid var(--border); }
+        header h1 { font-size: 1.4rem; color: var(--accent); }
+        header p { color: var(--text-muted); font-size: 0.78rem; }
+
+        .container { padding: 16px; max-width: 480px; margin: 0 auto; }
+        .section { display: none; }
+        .section.active { display: block; }
+
+        .card { background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 16px; }
+        .card h2 { font-size: 0.95rem; margin-bottom: 10px; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
+
+        /* Category Grid */
+        .category-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px; }
+        .cat-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .cat-card:active { background: var(--border); }
+        .cat-card.full-width { grid-column: span 2; }
+        .cat-icon { font-size: 1.8rem; margin-bottom: 6px; display: block; }
+        .cat-title { font-weight: 600; font-size: 0.9rem; }
+        .cat-desc { color: var(--text-muted); font-size: 0.75rem; margin-top: 2px; }
+
+        /* Multi-Select Cart Bar */
+        #cartBar { position: fixed; bottom: 60px; left: 0; width: 100%; background: #0f172a; border-top: 2px solid var(--accent); padding: 12px 16px; display: none; justify-content: space-between; align-items: center; z-index: 150; }
+        .cart-info { font-size: 0.85rem; font-weight: 600; color: #fff; }
+
+        /* Drawer Overlay */
+        #pickerModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 15, 25, 0.96); z-index: 200; display: none; flex-direction: column; padding: 16px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .modal-header h2 { color: var(--accent); font-size: 1.1rem; }
+        .close-btn { background: #334155; color: #fff; border: none; border-radius: 50%; width: 32px; height: 32px; font-weight: bold; cursor: pointer; }
+        
+        .drawer-actions { display: flex; gap: 8px; margin-bottom: 12px; }
+        .action-btn { flex: 1; background: #0f172a; border: 1px solid var(--border); color: var(--accent); padding: 8px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-align: center; }
+
+        .item-list { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .item-row { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+        .item-info { display: flex; align-items: center; gap: 12px; }
+        .item-icon { font-size: 1.4rem; }
+        .item-name { font-weight: 600; font-size: 0.85rem; word-break: break-all; }
+        .item-sub { color: var(--text-muted); font-size: 0.72rem; }
+
+        input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
+
+        /* Controls & Inputs */
+        input[type="text"] { width: 100%; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; padding: 10px; color: #fff; font-size: 0.85rem; margin-bottom: 10px; }
+        
+        button { width: 100%; background-color: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 10px; font-weight: 600; font-size: 0.88rem; cursor: pointer; }
+        button:active { background-color: var(--accent-hover); }
+
+        .status { margin-top: 8px; font-size: 0.8rem; color: var(--text-muted); word-break: break-all; }
+        
+        /* Queue Item Styles */
+        .queue-item { background: #0f172a; border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+        .queue-header { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; margin-bottom: 6px; }
+        .progress-bar { width: 100%; background: #1e293b; border-radius: 4px; height: 6px; overflow: hidden; margin-top: 4px; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s linear; }
+
+        .install-btn { background: #3b82f6; color: #fff; margin-top: 8px; padding: 6px 12px; border-radius: 6px; text-decoration: none; display: inline-block; font-size: 0.8rem; font-weight: 600; text-align: center; }
+
+        /* Bottom Taskbar Navigation */
+        nav { position: fixed; bottom: 0; left: 0; width: 100%; background-color: var(--nav-bg); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 8px 0; z-index: 100; }
+        .nav-item { background: none; border: none; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; font-size: 0.7rem; cursor: pointer; width: 33%; padding: 4px 0; }
+        .nav-item span { font-size: 1.2rem; margin-bottom: 2px; }
+        .nav-item.active { color: var(--accent); }
+    </style>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>GlobalXender Native</h1>
+        <p>Batch File Transfer Engine</p>
+    </header>
+
+    <div class="container">
+
+        <!-- 1. HOME DASHBOARD SECTION -->
+        <div id="sec-home" class="section active">
+            <div class="category-grid">
+                <div class="cat-card" onclick="openInternalPicker('Apps')">
+                    <span class="cat-icon">📱</span>
+                    <div class="cat-title">Apps</div>
+                    <div class="cat-desc" id="count-Apps">0 selected</div>
+                </div>
+                <div class="cat-card" onclick="openInternalPicker('Photos')">
+                    <span class="cat-icon">🖼️</span>
+                    <div class="cat-title">Photos</div>
+                    <div class="cat-desc" id="count-Photos">0 selected</div>
+                </div>
+                <div class="cat-card" onclick="openInternalPicker('Videos')">
+                    <span class="cat-icon">🎬</span>
+                    <div class="cat-title">Videos</div>
+                    <div class="cat-desc" id="count-Videos">0 selected</div>
+                </div>
+                <div class="cat-card" onclick="openInternalPicker('Music')">
+                    <span class="cat-icon">🎵</span>
+                    <div class="cat-title">Music</div>
+                    <div class="cat-desc" id="count-Music">0 selected</div>
+                </div>
+                <div class="cat-card full-width" onclick="openInternalPicker('Files')">
+                    <span class="cat-icon">📁</span>
+                    <div class="cat-title">Files</div>
+                    <div class="cat-desc" id="count-Files">0 selected</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. LIVE GLOBAL TRANSFER & QUEUE MONITOR PANEL -->
+        <div id="sec-transfer" class="section">
+            <div class="card">
+                <h2>🌐 Live Room Connection</h2>
+                <input type="text" id="roomCodeInput" placeholder="Enter Room Code (e.g. KLASH99)">
+                
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="hostLiveRoom()">Host Room</button>
+                    <button onclick="joinLiveRoom()" style="background: #3b82f6;">Join Room</button>
+                </div>
+                <div class="status" id="connectionStatus">Status: Disconnected</div>
+            </div>
+
+            <!-- ACTIVE TRANSMISSION QUEUE MONITOR -->
+            <div class="card">
+                <h2>📡 Batch Queue Monitor <span id="queueBadge" style="font-size:0.75rem; color:var(--accent);">(0 Active)</span></h2>
+                <div id="queueContainer">
+                    <div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:12px;">No items currently transmitting.</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MULTI-SELECT BOTTOM CART BAR -->
+    <div id="cartBar">
+        <div class="cart-info" id="cartCountText">0 items selected</div>
+        <button onclick="proceedToTransferPanel()" style="width: auto; padding: 8px 16px;">Send Batch ➔</button>
+    </div>
+
+    <!-- CATEGORY DRAWER -->
+    <div id="pickerModal">
+        <div class="modal-header">
+            <h2 id="modalTitle">Select Items</h2>
+            <button class="close-btn" onclick="closeModal()">✕</button>
+        </div>
+
+        <div class="drawer-actions">
+            <div class="action-btn" onclick="triggerFileImporter()">➕ Add File to Category</div>
+        </div>
+        <input type="file" id="realFileImporter" style="display:none;" onchange="handleRealFileImport(this)">
+
+        <div class="item-list" id="itemListContainer"></div>
+    </div>
+
+    <!-- BOTTOM TASKBAR NAVIGATION -->
+    <nav>
+        <button class="nav-item active" onclick="switchTab('home')" id="nav-home">
+            <span>🏠</span>Home
+        </button>
+        <button class="nav-item" onclick="switchTab('transfer')" id="nav-transfer">
+            <span>🌐</span>Transfer Queue
+        </button>
+    </nav>
+
+<script>
+    let peer = null;
+    let conn = null;
+    let activeCategory = '';
+    
+    // Global Multi-Select Cart
+    let selectedCart = [];
+
+    let phoneInventory = {
+        'Apps': [
+            { id: 'app1', name: 'Dream League Soccer 2026.apk', size: '480 MB', icon: '⚽', type: 'app' },
+            { id: 'app2', name: 'WhatsApp Messenger.apk', size: '54 MB', icon: '💬', type: 'app' },
+            { id: 'app3', name: 'Free Fire Max.apk', size: '750 MB', icon: '🔥', type: 'app' }
+        ],
+        'Photos': [
+            { id: 'p1', name: 'WhatsApp Image 2026.jpg', size: '2.4 MB', icon: '🖼️', type: 'media' },
+            { id: 'p2', name: 'Screenshot_RealMadrid.png', size: '1.8 MB', icon: '📸', type: 'media' }
+        ],
+        'Videos': [
+            { id: 'v1', name: 'VID_20261018.mp4', size: '24.5 MB', icon: '🎥', type: 'media' },
+            { id: 'v2', name: 'Alchemy_Of_Souls.mp4', size: '85.2 MB', icon: '🎞️', type: 'media' }
+        ],
+        'Music': [
+            { id: 'm1', name: 'Before_They_Know.mp3', size: '8.4 MB', icon: '🎵', type: 'media' },
+            { id: 'm2', name: 'KADARA_Demo.mp3', size: '9.6 MB', icon: '🎧', type: 'media' }
+        ],
+        'Files': [
+            { id: 'f1', name: 'JUPEB_Government.pdf', size: '4.2 MB', icon: '📄', type: 'doc' },
+            { id: 'f2', name: 'GTA_CWCheat.txt', size: '120 KB', icon: '📝', type: 'doc' }
+        ]
+    };
+
+    function triggerFileImporter() {
+        document.getElementById('realFileImporter').click();
+    }
+
+    function handleRealFileImport(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const sizeMb = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+            const newItem = {
+                id: 'custom_' + Date.now(),
+                name: file.name,
+                size: sizeMb,
+                icon: file.name.endsWith('.apk') ? '📱' : '📁',
+                rawFile: file,
+                type: file.name.endsWith('.apk') ? 'app' : 'file'
+            };
+            phoneInventory[activeCategory].unshift(newItem);
+            renderDrawerItems(activeCategory);
+            alert(`Imported "${file.name}" to ${activeCategory}! Check its box to select.`);
+        }
+    }
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+
+        if(tabName === 'home') {
+            document.getElementById('sec-home').classList.add('active');
+            document.getElementById('nav-home').classList.add('active');
+        } else if(tabName === 'transfer') {
+            document.getElementById('sec-transfer').classList.add('active');
+            document.getElementById('nav-transfer').classList.add('active');
+        }
+    }
+
+    function openInternalPicker(categoryName) {
+        activeCategory = categoryName;
+        document.getElementById('modalTitle').innerText = `Select ${categoryName}`;
+        renderDrawerItems(categoryName);
+        document.getElementById('pickerModal').style.display = 'flex';
+    }
+
+    function renderDrawerItems(categoryName) {
+        const container = document.getElementById('itemListContainer');
+        container.innerHTML = '';
+        const items = phoneInventory[categoryName] || [];
+        
+        items.forEach(item => {
+            const isChecked = selectedCart.some(i => i.id === item.id);
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.innerHTML = `
+                <div class="item-info">
+                    <span class="item-icon">${item.icon}</span>
+                    <div>
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-sub">${item.size}</div>
+                    </div>
+                </div>
+                <input type="checkbox" ${isChecked ? 'checked' : ''}>
+            `;
+
+            const checkbox = row.querySelector('input[type="checkbox"]');
+            row.onclick = (e) => {
+                if(e.target !== checkbox) checkbox.checked = !checkbox.checked;
+                toggleItemSelection(item, checkbox.checked);
+            };
+
+            container.appendChild(row);
+        });
+    }
+
+    function toggleItemSelection(item, isSelected) {
+        if (isSelected) {
+            if (!selectedCart.some(i => i.id === item.id)) selectedCart.push(item);
+        } else {
+            selectedCart = selectedCart.filter(i => i.id !== item.id);
+        }
+        updateCartUI();
+    }
+
+    function updateCartUI() {
+        const cartBar = document.getElementById('cartBar');
+        const cartCountText = document.getElementById('cartCountText');
+        
+        if (selectedCart.length > 0) {
+            cartBar.style.display = 'flex';
+            cartCountText.innerText = `${selectedCart.length} item(s) selected`;
+        } else {
+            cartBar.style.display = 'none';
+        }
+
+        for (let cat in phoneInventory) {
+            const selectedInCat = phoneInventory[cat].filter(item => selectedCart.some(i => i.id === item.id)).length;
+            const descElem = document.getElementById(`count-${cat}`);
+            if (descElem) descElem.innerText = `${selectedInCat} selected`;
+        }
+    }
+
+    function proceedToTransferPanel() {
+        closeModal();
+        switchTab('transfer');
+        if (conn && conn.open) {
+            startBatchStreaming();
+        } else {
+            alert("Host or Join a room code first to start transferring your selected items!");
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('pickerModal').style.display = 'none';
+    }
+
+    // --- LIVE WEBRTC SIGNALING ---
+    function hostLiveRoom() {
+        const roomCode = document.getElementById('roomCodeInput').value.trim();
+        if (!roomCode) { alert('Enter a room code!'); return; }
+
+        if (peer) peer.destroy();
+        peer = new Peer('globalxender-' + roomCode);
+
+        peer.on('open', () => {
+            document.getElementById('connectionStatus').innerText = `Room "${roomCode}" hosted. Waiting...`;
+        });
+
+        peer.on('connection', (incomingConn) => {
+            conn = incomingConn;
+            setupConnectionEvents();
+        });
+    }
+
+    function joinLiveRoom() {
+        const roomCode = document.getElementById('roomCodeInput').value.trim();
+        if (!roomCode) { alert('Enter a room code!'); return; }
+
+        if (peer) peer.destroy();
+        peer = new Peer();
+
+        peer.on('open', () => {
+            document.getElementById('connectionStatus').innerText = `Connecting to "${roomCode}"...`;
+            conn = peer.connect('globalxender-' + roomCode);
+            setupConnectionEvents();
+        });
+    }
+
+    function setupConnectionEvents() {
+        conn.on('open', () => {
+            document.getElementById('connectionStatus').innerText = 'Connected live across devices!';
+            if (selectedCart.length > 0) startBatchStreaming();
+        });
+
+        let currentReceivingMeta = null;
+        let incomingBuffer = [];
+
+        conn.on('data', (data) => {
+            if (data.type === 'batch-start') {
+                document.getElementById('queueContainer').innerHTML = '';
+            } else if (data.type === 'file-start') {
+                currentReceivingMeta = data;
+                incomingBuffer = [];
+                addQueueCard(data.id, data.name, 'Receiving...');
+            } else if (data.type === 'file-chunk') {
+                incomingBuffer.push(data.chunk);
+                let progress = Math.round((incomingBuffer.length / data.totalChunks) * 100);
+                updateQueueProgress(data.id, progress);
+
+                if (incomingBuffer.length === data.totalChunks) {
+                    const blob = new Blob(incomingBuffer);
+                    const url = URL.createObjectURL(blob);
+                    
+                    let actionHtml = `<a href="${url}" download="${currentReceivingMeta.name}" style="color:var(--accent); font-weight:600; font-size:0.8rem;">📥 Save File</a>`;
+                    
+                    // If file is an APK, render the Native Install Button
+                    if (currentReceivingMeta.name.endsWith('.apk')) {
+                        actionHtml += ` | <a href="${url}" download="${currentReceivingMeta.name}" class="install-btn">📲 Install App</a>`;
+                    }
+
+                    completeQueueCard(data.id, actionHtml);
+                }
+            }
+        });
+    }
+
+    function addQueueCard(id, name, statusText) {
+        const container = document.getElementById('queueContainer');
+        const card = document.createElement('div');
+        card.className = 'queue-item';
+        card.id = `q-${id}`;
+        card.innerHTML = `
+            <div class="queue-header">
+                <span>${name}</span>
+                <span id="st-${id}">${statusText}</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="pb-${id}"></div></div>
+            <div id="act-${id}" style="margin-top:6px;"></div>
+        `;
+        container.appendChild(card);
+    }
+
+    function updateQueueProgress(id, progress) {
+        const pb = document.getElementById(`pb-${id}`);
+        const st = document.getElementById(`st-${id}`);
+        if (pb) pb.style.width = progress + '%';
+        if (st) st.innerText = `${progress}%`;
+    }
+
+    function completeQueueCard(id, actionHtml) {
+        const st = document.getElementById(`st-${id}`);
+        const act = document.getElementById(`act-${id}`);
+        if (st) st.innerText = 'Completed';
+        if (act) act.innerHTML = actionHtml;
+    }
+
+    // STREAM BATCH QUEUE
+    async function startBatchStreaming() {
+        if (!conn || !conn.open) return;
+
+        document.getElementById('queueContainer').innerHTML = '';
+        document.getElementById('queueBadge').innerText = `(${selectedCart.length} Active)`;
+        conn.send({ type: 'batch-start' });
+
+        for (let item of selectedCart) {
+            addQueueCard(item.id, item.name, 'Sending...');
+            
+            if (item.rawFile) {
+                await streamFileBinary(item);
+            } else {
+                // Simulated streaming progress for non-imported drawer items
+                for (let p = 0; p <= 100; p += 20) {
+                    updateQueueProgress(item.id, p);
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                completeQueueCard(item.id, '<span style="color:var(--accent); font-size:0.8rem;">Sent ✓</span>');
+            }
+        }
+    }
+
+    async function streamFileBinary(item) {
+        const file = item.rawFile;
+        const chunkSize = 16384;
+        const totalChunks = Math.ceil(file.size / chunkSize);
+        let offset = 0;
+
+        conn.send({ type: 'file-start', id: item.id, name: file.name, size: file.size });
+
+        for (let i = 0; i < totalChunks; i++) {
+            const chunk = file.slice(offset, offset + chunkSize);
+            const arrayBuffer = await chunk.arrayBuffer();
+
+            conn.send({ type: 'file-chunk', id: item.id, chunk: arrayBuffer, totalChunks: totalChunks });
+            offset += chunkSize;
+
+            let progress = Math.round(((i + 1) / totalChunks) * 100);
+            updateQueueProgress(item.id, progress);
+        }
+        completeQueueCard(item.id, '<span style="color:var(--accent); font-size:0.8rem;">Sent ✓</span>');
+    }
+</script>
+
+</body>
+</html>
